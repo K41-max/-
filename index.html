@@ -1,0 +1,451 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <title>Anki Light Offline - 自分専用単語帳</title>
+  <style>
+    :root {
+      --bg-color: #0f172a;
+      --card-bg: #1e293b;
+      --text-primary: #f8fafc;
+      --text-secondary: #94a3b8;
+      --accent-blue: #38bdf8;
+      --accent-green: #4ade80;
+      --accent-yellow: #facc15;
+      --accent-red: #f87171;
+      --border-color: #334155;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; -webkit-tap-highlight-color: transparent; }
+    body { background: var(--bg-color); color: var(--text-primary); min-height: 100vh; display: flex; flex-direction: column; justify-content: space-between; padding: 16px; }
+    
+    header { display: flex; justify-content: space-between; align-items: center; padding-bottom: 12px; border-bottom: 1px solid var(--border-color); }
+    h1 { font-size: 1.1rem; color: var(--accent-blue); font-weight: 700; letter-spacing: 0.5px; }
+    .stats { display: flex; gap: 12px; font-weight: 600; font-size: 0.85rem; }
+    .stat-box { display: flex; align-items: center; gap: 4px; }
+    .stat-new { color: var(--accent-blue); }
+    .stat-learn { color: var(--accent-red); }
+    .stat-review { color: var(--accent-green); }
+
+    .main-area { flex: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; margin: 20px 0; }
+    
+    .card-container {
+      width: 100%;
+      max-width: 650px;
+      min-height: 340px;
+      background: var(--card-bg);
+      border-radius: 20px;
+      border: 1px solid var(--border-color);
+      box-shadow: 0 12px 30px rgba(0,0,0,0.4);
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      padding: 28px 20px;
+      text-align: center;
+      cursor: pointer;
+      position: relative;
+      transition: transform 0.15s ease, border-color 0.2s;
+    }
+    .card-container:active { transform: scale(0.985); }
+    .card-badge { position: absolute; top: 16px; left: 20px; font-size: 0.75rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 1px; font-weight: 600; }
+    .card-deck { position: absolute; top: 16px; right: 20px; font-size: 0.75rem; color: var(--accent-blue); font-weight: 600; }
+    
+    .card-front { font-size: 2.2rem; font-weight: 800; color: #ffffff; margin-bottom: 8px; line-height: 1.2; }
+    .card-phonetic { font-size: 1rem; color: var(--accent-blue); margin-bottom: 16px; font-style: italic; }
+    
+    .divider { width: 90%; height: 1px; background: var(--border-color); margin: 18px 0; display: none; }
+    
+    .card-back { font-size: 1.15rem; line-height: 1.6; color: var(--text-primary); display: none; text-align: left; width: 100%; padding: 0 10px; }
+    .card-back .meaning { font-size: 1.3rem; font-weight: bold; color: #ffffff; margin-bottom: 10px; }
+    .card-back .etymology { margin-top: 12px; font-size: 0.92rem; color: var(--text-secondary); background: rgba(56, 189, 248, 0.08); padding: 10px 14px; border-radius: 10px; border-left: 3px solid var(--accent-blue); }
+    .card-back .example { margin-top: 12px; font-size: 0.95rem; color: #cbd5e1; font-style: italic; border-top: 1px dashed var(--border-color); padding-top: 10px; }
+
+    .control-panel { width: 100%; max-width: 650px; margin-top: 12px; }
+    
+    .show-answer-btn {
+      width: 100%;
+      padding: 18px;
+      background: var(--accent-blue);
+      color: #0f172a;
+      font-size: 1.15rem;
+      font-weight: 800;
+      border: none;
+      border-radius: 14px;
+      cursor: pointer;
+      box-shadow: 0 4px 15px rgba(56, 189, 248, 0.3);
+      transition: opacity 0.2s, transform 0.1s;
+    }
+    .show-answer-btn:active { opacity: 0.85; transform: scale(0.99); }
+
+    .rating-buttons { display: none; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+    .rate-btn {
+      padding: 14px 6px;
+      border: none;
+      border-radius: 12px;
+      font-weight: 800;
+      font-size: 0.95rem;
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    }
+    .rate-again { background: #ef4444; color: #fff; }
+    .rate-hard { background: #f59e0b; color: #fff; }
+    .rate-good { background: #10b981; color: #fff; }
+    .rate-easy { background: #3b82f6; color: #fff; }
+    .rate-sub { font-size: 0.72rem; opacity: 0.85; font-weight: normal; }
+
+    footer { display: flex; justify-content: center; gap: 16px; padding-top: 12px; border-top: 1px solid var(--border-color); }
+    .footer-btn { background: transparent; border: 1px solid var(--border-color); color: var(--text-secondary); padding: 8px 16px; border-radius: 20px; font-size: 0.85rem; cursor: pointer; font-weight: 600; }
+    .footer-btn:active { background: var(--border-color); color: var(--text-primary); }
+
+    /* Modal */
+    .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); z-index: 100; justify-content: center; align-items: center; padding: 16px; backdrop-filter: blur(4px); }
+    .modal-content { background: var(--card-bg); width: 100%; max-width: 600px; border-radius: 20px; padding: 24px; max-height: 85vh; overflow-y: auto; border: 1px solid var(--border-color); }
+    .modal-title { font-size: 1.25rem; font-weight: 800; margin-bottom: 12px; color: var(--accent-blue); }
+    .modal-desc { font-size: 0.88rem; color: var(--text-secondary); margin-bottom: 12px; line-height: 1.4; }
+    textarea { width: 100%; height: 180px; background: var(--bg-color); color: var(--text-primary); border: 1px solid var(--border-color); border-radius: 12px; padding: 12px; font-family: monospace; font-size: 0.85rem; margin-bottom: 16px; resize: vertical; }
+    .modal-actions { display: flex; justify-content: flex-end; gap: 10px; }
+    .modal-btn { padding: 10px 18px; border-radius: 10px; border: none; font-weight: bold; cursor: pointer; font-size: 0.9rem; }
+    .btn-close { background: var(--border-color); color: var(--text-primary); }
+    .btn-primary { background: var(--accent-blue); color: #0f172a; }
+  </style>
+</head>
+<body>
+
+  <header>
+    <h1>Anki Offline Standard</h1>
+    <div class="stats">
+      <div class="stat-box stat-new">New: <span id="count-new">0</span></div>
+      <div class="stat-box stat-learn">Learn: <span id="count-learn">0</span></div>
+      <div class="stat-box stat-review">Review: <span id="count-review">0</span></div>
+    </div>
+  </header>
+
+  <div class="main-area">
+    <div class="card-container" id="card-element" onclick="toggleAnswer()">
+      <div class="card-badge" id="card-status">NEW</div>
+      <div class="card-deck" id="card-section">鉄壁・準1級標準</div>
+      <div id="card-content-area">
+        <div class="card-front" id="card-front">Loading...</div>
+        <div class="card-phonetic" id="card-phonetic"></div>
+        <div class="divider" id="card-divider"></div>
+        <div class="card-back" id="card-back"></div>
+      </div>
+    </div>
+
+    <div class="control-panel">
+      <button class="show-answer-btn" id="show-answer-btn" onclick="toggleAnswer()">答えを表示 (Tap / Space)</button>
+      <div class="rating-buttons" id="rating-buttons">
+        <button class="rate-btn rate-again" onclick="rateCard(1)">
+          Again
+          <span class="rate-sub">&lt;1分</span>
+        </button>
+        <button class="rate-btn rate-hard" onclick="rateCard(2)">
+          Hard
+          <span class="rate-sub">1日</span>
+        </button>
+        <button class="rate-btn rate-good" onclick="rateCard(3)">
+          Good
+          <span class="rate-sub">3日</span>
+        </button>
+        <button class="rate-btn rate-easy" onclick="rateCard(4)">
+          Easy
+          <span class="rate-sub">7日</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <footer>
+    <button class="footer-btn" onclick="openImportModal()">単語インポート / 編集</button>
+    <button class="footer-btn" onclick="resetProgress()">学習データリセット</button>
+  </footer>
+
+  <!-- Modal for Import/Export -->
+  <div class="modal" id="import-modal">
+    <div class="modal-content">
+      <div class="modal-title">単語データの追加・編集 (TSV / CSV)</div>
+      <div class="modal-desc">
+        タブ（またはカンマ）区切りで追加できます。<br>
+        形式: <b>英単語 [Tab] 意味 [Tab] 語源・補足 [Tab] 例文</b><br>
+        ※Excelやスプレッドシートからコピペできます。
+      </div>
+      <textarea id="import-input" placeholder="例:&#10;abandon&#9;～を見捨てる、断念する&#9;語源: a(〜へ) + bandon(命令)&#9;He abandoned his attempt."></textarea>
+      <div class="modal-actions">
+        <button class="modal-btn btn-close" onclick="closeImportModal()">キャンセル</button>
+        <button class="modal-btn btn-primary" onclick="saveImportData()">保存して読み込み</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // デフォルトのサンプルデータ（鉄壁・難関大・英検準1級厳選）
+    const defaultCards = [
+      {
+        id: 1,
+        front: "abandon",
+        phonetic: "/əˈbændən/",
+        meaning: "【動】～を見捨てる、を断念する",
+        etymology: "【語源】a (〜へ) + bandon (命令・管轄) ➔ 他人の管轄下に置き去りにする",
+        example: "The sailors had to abandon the sinking ship.",
+        interval: 0,
+        reps: 0,
+        ease: 2.5,
+        dueDate: Date.now(),
+        status: "new"
+      },
+      {
+        id: 2,
+        front: "attribute",
+        phonetic: "/əˈtrɪbjuːt/",
+        meaning: "【動】(～の) 原因を (…に) 帰する【名】属性、特性",
+        etymology: "【語源】at (〜へ) + tribute (割り当てる・与える) ➔ 成果や原因を特定の場所へ割り当てる",
+        example: "She attributed her success to hard work.",
+        interval: 0,
+        reps: 0,
+        ease: 2.5,
+        dueDate: Date.now(),
+        status: "new"
+      },
+      {
+        id: 3,
+        front: "reluctant",
+        phonetic: "/rɪˈlʌktənt/",
+        meaning: "【形】気が進まない、乗り気でない (to do)",
+        etymology: "【語源】re (反抗して) + luct (格闘する) ➔ 抵抗して反抗するような思い",
+        example: "He was reluctant to commit himself to the plan.",
+        interval: 0,
+        reps: 0,
+        ease: 2.5,
+        dueDate: Date.now(),
+        status: "new"
+      },
+      {
+        id: 4,
+        front: "subtle",
+        phonetic: "/ˈsʌtl/",
+        meaning: "【形】かすかな、繊細な、微妙な",
+        etymology: "【語源】sub (下に) + tela (織り糸) ➔ 織り糸の下を通るほど細かく見分けにくい",
+        example: "There is a subtle difference between the two words.",
+        interval: 0,
+        reps: 0,
+        ease: 2.5,
+        dueDate: Date.now(),
+        status: "new"
+      },
+      {
+        id: 5,
+        front: "comprehensive",
+        phonetic: "/ˌkɒmprɪˈhensɪv/",
+        meaning: "【形】包括的な、総合的な、理解力のある",
+        etymology: "【語源】com (完全に) + prehend (掴む) ➔ すべてを一つに掴み取って網羅する",
+        example: "The guide provides comprehensive study notes.",
+        interval: 0,
+        reps: 0,
+        ease: 2.5,
+        dueDate: Date.now(),
+        status: "new"
+      }
+    ];
+
+    let cards = [];
+    let currentCardIndex = -1;
+    let isShowingAnswer = false;
+
+    // 初期化 (LocalStorage から読み込み)
+    function init() {
+      const saved = localStorage.getItem("anki_offline_cards");
+      if (saved) {
+        try {
+          cards = JSON.parse(saved);
+        } catch(e) {
+          cards = defaultCards;
+        }
+      } else {
+        cards = defaultCards;
+        saveCards();
+      }
+      loadNextCard();
+    }
+
+    function saveCards() {
+      localStorage.setItem("anki_offline_cards", JSON.stringify(cards));
+    }
+
+    function updateStats() {
+      const now = Date.now();
+      let newCount = 0, learnCount = 0, reviewCount = 0;
+      cards.forEach(c => {
+        if (c.status === "new") newCount++;
+        else if (c.status === "learning") learnCount++;
+        else if (c.status === "review" && c.dueDate <= now) reviewCount++;
+      });
+      document.getElementById("count-new").innerText = newCount;
+      document.getElementById("count-learn").innerText = learnCount;
+      document.getElementById("count-review").innerText = reviewCount;
+    }
+
+    function loadNextCard() {
+      updateStats();
+      isShowingAnswer = false;
+      document.getElementById("card-divider").style.display = "none";
+      document.getElementById("card-back").style.display = "none";
+      document.getElementById("show-answer-btn").style.display = "block";
+      document.getElementById("rating-buttons").style.display = "none";
+
+      const now = Date.now();
+      // 復習対象 > 学習中 > 未習得(New) の優先度で検索
+      let eligible = cards.filter(c => c.status === "review" && c.dueDate <= now);
+      if (eligible.length === 0) {
+        eligible = cards.filter(c => c.status === "learning");
+      }
+      if (eligible.length === 0) {
+        eligible = cards.filter(c => c.status === "new");
+      }
+
+      if (eligible.length === 0) {
+        // すべて完了
+        document.getElementById("card-status").innerText = "COMPLETE";
+        document.getElementById("card-front").innerText = "🎉 本日の学習はすべて完了しました！";
+        document.getElementById("card-phonetic").innerText = "";
+        document.getElementById("card-back").innerHTML = "<div style='text-align:center;'>新しい単語を追加するか、後ほど復習してください。</div>";
+        document.getElementById("card-back").style.display = "block";
+        document.getElementById("show-answer-btn").style.display = "none";
+        currentCardIndex = -1;
+        return;
+      }
+
+      // 該当カードを1枚ランダム選択
+      const card = eligible[Math.floor(Math.random() * eligible.length)];
+      currentCardIndex = cards.findIndex(c => c.id === card.id);
+
+      document.getElementById("card-status").innerText = card.status.toUpperCase();
+      document.getElementById("card-front").innerText = card.front;
+      document.getElementById("card-phonetic").innerText = card.phonetic || "";
+
+      let backHTML = `<div class="meaning">${card.meaning}</div>`;
+      if (card.etymology) backHTML += `<div class="etymology">${card.etymology}</div>`;
+      if (card.example) backHTML += `<div class="example">例文: ${card.example}</div>`;
+      
+      document.getElementById("card-back").innerHTML = backHTML;
+    }
+
+    function toggleAnswer() {
+      if (currentCardIndex === -1 || isShowingAnswer) return;
+      isShowingAnswer = true;
+      document.getElementById("card-divider").style.display = "block";
+      document.getElementById("card-back").style.display = "block";
+      document.getElementById("show-answer-btn").style.display = "none";
+      document.getElementById("rating-buttons").style.display = "grid";
+    }
+
+    // SM-2 簡易アルゴリズムによる判定
+    function rateCard(rating) {
+      if (currentCardIndex === -1) return;
+      const card = cards[currentCardIndex];
+      const now = Date.now();
+
+      if (rating === 1) { // Again
+        card.status = "learning";
+        card.interval = 0;
+        card.reps = 0;
+        card.dueDate = now + 60 * 1000; // 1分後
+      } else if (rating === 2) { // Hard
+        card.status = "review";
+        card.interval = 1;
+        card.dueDate = now + 1 * 24 * 60 * 60 * 1000; // 1日後
+      } else if (rating === 3) { // Good
+        card.status = "review";
+        card.interval = card.interval === 0 ? 3 : Math.round(card.interval * card.ease);
+        card.reps += 1;
+        card.dueDate = now + card.interval * 24 * 60 * 60 * 1000;
+      } else if (rating === 4) { // Easy
+        card.status = "review";
+        card.interval = card.interval === 0 ? 7 : Math.round(card.interval * card.ease * 1.3);
+        card.reps += 1;
+        card.dueDate = now + card.interval * 24 * 60 * 60 * 1000;
+      }
+
+      saveCards();
+      loadNextCard();
+    }
+
+    // Modal Operations
+    function openImportModal() {
+      let tsvText = cards.map(c => `${c.front}	${c.meaning.replace(/【.】/g, '')}	${c.etymology||''}	${c.example||''}`).join("
+");
+      document.getElementById("import-input").value = tsvText;
+      document.getElementById("import-modal").style.display = "flex";
+    }
+
+    function closeImportModal() {
+      document.getElementById("import-modal").style.display = "none";
+    }
+
+    function saveImportData() {
+      const text = document.getElementById("import-input").value.trim();
+      if (!text) return;
+
+      const lines = text.split("
+");
+      const newCards = [];
+      lines.forEach((line, idx) => {
+        const parts = line.split("	");
+        if (parts.length >= 2) {
+          newCards.push({
+            id: Date.now() + idx,
+            front: parts[0].trim(),
+            phonetic: "",
+            meaning: parts[1].trim(),
+            etymology: parts[2] ? parts[2].trim() : "",
+            example: parts[3] ? parts[3].trim() : "",
+            interval: 0,
+            reps: 0,
+            ease: 2.5,
+            dueDate: Date.now(),
+            status: "new"
+          });
+        }
+      });
+
+      if (newCards.length > 0) {
+        cards = newCards;
+        saveCards();
+        closeImportModal();
+        loadNextCard();
+      } else {
+        alert("有効なデータ形式ではありません。タブ区切りで「単語 [Tab] 意味」の形式で入力してください。");
+      }
+    }
+
+    function resetProgress() {
+      if (confirm("全ての学習記録を初期化して最初の状態に戻しますか？")) {
+        localStorage.removeItem("anki_offline_cards");
+        init();
+      }
+    }
+
+    // キーボードショートカット (iPadでキーボード接続時用)
+    document.addEventListener("keydown", (e) => {
+      if (e.code === "Space") {
+        e.preventDefault();
+        if (!isShowingAnswer) toggleAnswer();
+      } else if (isShowingAnswer) {
+        if (e.key === "1") rateCard(1);
+        else if (e.key === "2") rateCard(2);
+        else if (e.key === "3") rateCard(3);
+        else if (e.key === "4") rateCard(4);
+      }
+    });
+
+    window.onload = init;
+  </script>
+</body>
+</html>
