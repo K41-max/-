@@ -301,7 +301,6 @@
       document.getElementById("rating-buttons").style.display = "none";
 
       const now = Date.now();
-      // 復習対象 > 学習中 > 未習得(New) の優先度で検索
       let eligible = cards.filter(c => c.status === "review" && c.dueDate <= now);
       if (eligible.length === 0) {
         eligible = cards.filter(c => c.status === "learning");
@@ -311,7 +310,6 @@
       }
 
       if (eligible.length === 0) {
-        // すべて完了
         document.getElementById("card-status").innerText = "COMPLETE";
         document.getElementById("card-front").innerText = "🎉 本日の学習はすべて完了しました！";
         document.getElementById("card-phonetic").innerText = "";
@@ -322,7 +320,6 @@
         return;
       }
 
-      // 該当カードを1枚ランダム選択
       const card = eligible[Math.floor(Math.random() * eligible.length)];
       currentCardIndex = cards.findIndex(c => c.id === card.id);
 
@@ -330,9 +327,9 @@
       document.getElementById("card-front").innerText = card.front;
       document.getElementById("card-phonetic").innerText = card.phonetic || "";
 
-      let backHTML = `<div class="meaning">${card.meaning}</div>`;
-      if (card.etymology) backHTML += `<div class="etymology">${card.etymology}</div>`;
-      if (card.example) backHTML += `<div class="example">例文: ${card.example}</div>`;
+      let backHTML = '<div class="meaning">' + card.meaning + '</div>';
+      if (card.etymology) backHTML += '<div class="etymology">' + card.etymology + '</div>';
+      if (card.example) backHTML += '<div class="example">例文: ' + card.example + '</div>';
       
       document.getElementById("card-back").innerHTML = backHTML;
     }
@@ -346,27 +343,26 @@
       document.getElementById("rating-buttons").style.display = "grid";
     }
 
-    // SM-2 簡易アルゴリズムによる判定
     function rateCard(rating) {
       if (currentCardIndex === -1) return;
       const card = cards[currentCardIndex];
       const now = Date.now();
 
-      if (rating === 1) { // Again
+      if (rating === 1) {
         card.status = "learning";
         card.interval = 0;
         card.reps = 0;
-        card.dueDate = now + 60 * 1000; // 1分後
-      } else if (rating === 2) { // Hard
+        card.dueDate = now + 60 * 1000;
+      } else if (rating === 2) {
         card.status = "review";
         card.interval = 1;
-        card.dueDate = now + 1 * 24 * 60 * 60 * 1000; // 1日後
-      } else if (rating === 3) { // Good
+        card.dueDate = now + 1 * 24 * 60 * 60 * 1000;
+      } else if (rating === 3) {
         card.status = "review";
         card.interval = card.interval === 0 ? 3 : Math.round(card.interval * card.ease);
         card.reps += 1;
         card.dueDate = now + card.interval * 24 * 60 * 60 * 1000;
-      } else if (rating === 4) { // Easy
+      } else if (rating === 4) {
         card.status = "review";
         card.interval = card.interval === 0 ? 7 : Math.round(card.interval * card.ease * 1.3);
         card.reps += 1;
@@ -377,10 +373,8 @@
       loadNextCard();
     }
 
-    // Modal Operations
     function openImportModal() {
-      let tsvText = cards.map(c => `${c.front}	${c.meaning.replace(/【.】/g, '')}	${c.etymology||''}	${c.example||''}`).join("
-");
+      let tsvText = cards.map(c => c.front + "\t" + c.meaning.replace(/【.】/g, '') + "\t" + (c.etymology||'') + "\t" + (c.example||'')).join("\n");
       document.getElementById("import-input").value = tsvText;
       document.getElementById("import-modal").style.display = "flex";
     }
@@ -393,11 +387,10 @@
       const text = document.getElementById("import-input").value.trim();
       if (!text) return;
 
-      const lines = text.split("
-");
+      const lines = text.split("\n");
       const newCards = [];
       lines.forEach((line, idx) => {
-        const parts = line.split("	");
+        const parts = line.split("\t");
         if (parts.length >= 2) {
           newCards.push({
             id: Date.now() + idx,
@@ -432,7 +425,6 @@
       }
     }
 
-    // キーボードショートカット (iPadでキーボード接続時用)
     document.addEventListener("keydown", (e) => {
       if (e.code === "Space") {
         e.preventDefault();
